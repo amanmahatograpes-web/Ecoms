@@ -1,0 +1,165 @@
+/* ---------- Container ---------- */
+.amazon-login-container {
+  background: #f2f2f2;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Amazon Ember", Arial, sans-serif;
+}
+
+/* ---------- Box ---------- */
+.amazon-login-box {
+  background: #fff;
+  padding: 2rem 2.5rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  width: 350px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Title ---------- */
+.amazon-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #111;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* ---------- Label ---------- */
+.amazon-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #111;
+}
+
+/* ---------- Input ---------- */
+.amazon-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #a6a6a6;
+  border-radius: 4px;
+  font-size: 15px;
+  margin-bottom: 15px;
+  transition: all 0.2s ease;
+}
+
+.amazon-input:focus {
+  border-color: #e77600;
+  outline: none;
+  box-shadow: 0 0 3px #f90;
+}
+
+/* ---------- Buttons ---------- */
+.amazon-btn {
+  width: 100%;
+  padding: 10px;
+  background: #ffd814;
+  border: 1px solid #fcd200;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.amazon-btn:hover {
+  background: #f7ca00;
+}
+
+/* OTP layout */
+.amazon-otp-row {
+  display: flex;
+  gap: 10px;
+}
+
+.otp-input {
+  flex: 1;
+}
+
+.otp-btn {
+  flex: 0.5;
+  font-size: 14px;
+}
+
+/* ---------- Links ---------- */
+.amazon-link-btn {
+  background: none;
+  border: none;
+  color: #0066c0;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.amazon-link-btn:hover {
+  text-decoration: underline;
+}
+
+.amazon-text {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* ---------- Error & Success ---------- */
+.amazon-error {
+  color: #b12704;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.amazon-success {
+  color: #007600;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+/* ---------- Popup ---------- */
+.amazon-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.amazon-popup-box {
+  background: #fff;
+  padding: 25px 40px;
+  border-radius: 10px;
+  text-align: center;
+  color: #007600;
+  font-size: 18px;
+  animation: popupFade 0.3s ease;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .amazon-login-box {
+    width: 90%;
+    padding: 1.5rem;
+  }
+  .amazon-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ---------- Animation ---------- */
+@keyframes popupFade {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

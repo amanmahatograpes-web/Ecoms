@@ -1,0 +1,192 @@
+/* At the top of your global CSS file */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+
+@import "leaflet/dist/leaflet.css";
+
+.blob-gradient-bg {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: #fff7ec;
+  overflow: hidden;
+}
+
+.blob-gradient-bg::before,
+.blob-gradient-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.7;
+  z-index: 0;
+}
+
+.blob-gradient-bg::before {
+  width: 400px;
+  height: 400px;
+  background: #ffcc70; /* yellow-orange */
+  top: -100px;
+  left: -100px;
+}
+
+.blob-gradient-bg::after {
+  width: 500px;
+  height: 500px;
+  background: #ff5e57; /* soft red */
+  bottom: -150px;
+  right: -100px;
+}
+
+/* Thin scrollbar - styled like macOS */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2); /* Subtle thumb */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.popup-blue .leaflet-popup-content-wrapper {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+.popup-blue .leaflet-popup-tip {
+  background-color: #dbeafe !important;
+}
+
+.popup-red .leaflet-popup-content-wrapper {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+}
+.popup-red .leaflet-popup-tip {
+  background-color: #fee2e2 !important;
+}
+
+.popup-yellow .leaflet-popup-content-wrapper {
+  background-color: #fef9c3 !important;
+  color: #854d0e !important;
+}
+.popup-yellow .leaflet-popup-tip {
+  background-color: #fef9c3 !important;
+}
+.stepper-step {
+  position: relative;
+}
+
+.stepper-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 100%; /* bottom center */
+  left: 50%;
+  width: 60px; /* adjust spacing between circles */
+  height: 2px;
+  background-color: #3b82f6; /* use any color e.g. blue-500 */
+  transform: translateY(8px); /* small space below the circle */
+  z-index: 1;
+}
+
+.stepper-tooltip {
+  position: absolute;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: none;
+  background-color: #1f2937;
+  color: white;
+  font-size: 10px;
+  border-radius: 0.25rem;
+  padding: 4px 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.stepper-step:hover .stepper-tooltip {
+  display: block;
+}
+
+/* ########################################################################################################################################## */
+.packky-toggle-container {
+  --toggle-width: 50px;
+  --toggle-height: 24px;
+  --thumb-size: 20px;
+  --color-on: #ff7f50;
+  --color-off: #aaa;
+  --transition: 0.3s ease;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: sans-serif;
+  user-select: none;
+}
+
+.packky-toggle-input {
+  display: none;
+}
+
+.packky-toggle {
+  position: relative;
+  width: var(--toggle-width);
+  height: var(--toggle-height);
+  background-color: var(--color-off);
+  border-radius: var(--toggle-height);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.packky-track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--toggle-height);
+  background-color: inherit;
+}
+
+.packky-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background-color: white;
+  border-radius: 50%;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.packky-toggle-input:checked + .packky-toggle {
+  background-color: var(--color-on);
+}
+
+.packky-toggle-input:checked + .packky-toggle .packky-thumb {
+  transform: translateX(26px);
+}
+
+.packky-status-text {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 55px;
+  text-align: left;
+  transition: color 0.3s ease;
+}
+
+/* Manual - default gray */
+.packky-status-text.off {
+  color: #333;
+}
+
+/* Auto - orange */
+.packky-status-text.on {
+  color: #5cd437;
+}

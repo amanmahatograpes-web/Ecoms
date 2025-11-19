@@ -1,0 +1,181 @@
+/* ---------- Container ---------- */
+.amazon-signup-container {
+  background: #f2f2f2;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Amazon Ember", Arial, sans-serif;
+  padding: 20px;
+}
+
+/* ---------- Box ---------- */
+.amazon-signup-box {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 2rem 2.5rem;
+  width: 380px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------- Title ---------- */
+.amazon-signup-title {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 1.5rem;
+}
+
+/* ---------- Error Box ---------- */
+.amazon-server-error {
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  color: #c33;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+/* ---------- Form ---------- */
+.amazon-signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* ---------- Input Group ---------- */
+.amazon-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Inputs ---------- */
+.amazon-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #a6a6a6;
+  border-radius: 4px;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.amazon-input:focus {
+  border-color: #e77600;
+  box-shadow: 0 0 3px #f90;
+  outline: none;
+}
+
+.amazon-input-error {
+  border-color: #b12704;
+  background: #fff5f5;
+}
+
+/* ---------- Error Text ---------- */
+.amazon-error-text {
+  color: #b12704;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* ---------- Button ---------- */
+.amazon-submit-btn {
+  background: #ffd814;
+  border: 1px solid #fcd200;
+  border-radius: 4px;
+  font-size: 16px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.amazon-submit-btn:hover {
+  background: #f7ca00;
+}
+
+.amazon-submit-disabled {
+  background: #f0e68c;
+  cursor: not-allowed;
+}
+
+/* ---------- Login Link ---------- */
+.amazon-login-link {
+  text-align: center;
+  font-size: 14px;
+  color: #555;
+  margin-top: 10px;
+}
+
+.amazon-link {
+  color: #0066c0;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.amazon-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Popup ---------- */
+.amazon-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.amazon-popup-box {
+  background: #fff;
+  padding: 30px 50px;
+  border-radius: 10px;
+  text-align: center;
+  animation: popupFade 0.3s ease;
+}
+
+.amazon-success-icon {
+  background: #28a745;
+  color: #fff;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin: 0 auto 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+/* ---------- Animation ---------- */
+@keyframes popupFade {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .amazon-signup-box {
+    width: 95%;
+    padding: 1.5rem;
+  }
+
+  .amazon-signup-title {
+    font-size: 1.5rem;
+  }
+}
