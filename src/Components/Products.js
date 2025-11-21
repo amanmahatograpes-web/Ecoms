@@ -6534,6 +6534,10 @@
 // // API Configuration
 // const API_BASE_URL = 'http://localhost:8000/api';
 
+
+
+
+
 // // Enhanced API Service with proper payload handling
 // const API = {
 //   STORAGE_KEY: "products-data",
@@ -7506,6 +7510,8 @@
 //   const getProductId = (product) => {
 //     return product._id || product.id;
 //   };
+// const [currentPage, setCurrentPage] = useState(1);
+// const itemsPerPage = 10;
 
 //   const filteredProducts = products.filter(p => {
 //     const matchesSearch = !filters.search || 
@@ -7539,6 +7545,12 @@
 //       }
 //     }
 //   };
+// const indexOfLastItem = currentPage * itemsPerPage;
+// const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+
+// const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+
+// const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
 //   // Inline action handlers
 //   const handleDeleteProduct = async (id) => {
@@ -7639,7 +7651,7 @@
 //             </tr>
 //           </thead>
 //           <tbody>
-//             {filteredProducts.map(product => (
+//             {currentProducts.map(product => (
 //               <tr key={getProductId(product)} className="border-b hover:bg-gray-50">
 //                 <td className="p-4">
 //                   <input
@@ -7718,14 +7730,65 @@
 //             ))}
 //           </tbody>
 //         </table>
-        
-//         {filteredProducts.length === 0 && (
+//         {/* Pagination */}
+// {filteredProducts.length > 0 && (
+//   <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+
+//     {/* Showing count */}
+//     <p className="text-sm text-gray-600">
+//       Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length}
+//     </p>
+
+//     {/* Pagination Buttons */}
+//     <div className="flex gap-2">
+//       <button
+//         disabled={currentPage === 1}
+//         onClick={() => setCurrentPage(prev => prev - 1)}
+//         className={`px-3 py-1 border rounded ${
+//           currentPage === 1
+//             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+//             : "bg-white hover:bg-gray-100"
+//         }`}
+//       >
+//         Previous
+//       </button>
+
+//       {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+//         <button
+//           key={page}
+//           onClick={() => setCurrentPage(page)}
+//           className={`px-3 py-1 border rounded ${
+//             currentPage === page
+//               ? "bg-blue-500 text-white"
+//               : "bg-white hover:bg-gray-100"
+//           }`}
+//         >
+//           {page}
+//         </button>
+//       ))}
+
+//       <button
+//         disabled={currentPage === totalPages}
+//         onClick={() => setCurrentPage(prev => prev + 1)}
+//         className={`px-3 py-1 border rounded ${
+//           currentPage === totalPages
+//             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+//             : "bg-white hover:bg-gray-100"
+//         }`}
+//       >
+//         Next
+//       </button>
+//     </div>
+//   </div>
+// )}
+
+//         {/* {filteredProducts.length === 0 && (
 //           <div className="p-12 text-center text-gray-500">
 //             <Filter size={48} className="mx-auto text-gray-300 mb-4" />
 //             <p className="text-lg font-semibold">No products match your filters.</p>
 //             <p className="text-sm">Try adjusting your search or filter selections.</p>
 //           </div>
-//         )}
+//         )} */}
 //       </div>
 //     </div>
 //   );
@@ -7735,39 +7798,27 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Upload, Download, Filter, Package, AlertTriangle, TrendingUp, Edit, Trash2, BarChart3, User } from 'lucide-react';
+import { Search, Plus, Upload, Download, Filter, Package, AlertTriangle, TrendingUp, Edit, Trash2, BarChart3, User, Menu, X } from 'lucide-react';
 
-// API Configuration
+// API Configuration (same as before)
 const API_BASE_URL = 'http://localhost:8000/api';
 
-// Enhanced API Service with proper payload handling
 const API = {
   STORAGE_KEY: "products-data",
   VENDOR_KEY: "current-vendor",
 
-  // Helper method to handle API requests
   async makeRequest(endpoint, options = {}) {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
       console.log(`Making API request to: ${url}`, options);
       
-      // const response = await fetch(url, {
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     ...options.headers,
-      //   },
-      //   ...options,
-      // });
-
       const response = await fetch(url, {
-  method: options.method || 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-  },
-  body: options.body,
-});
-
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -7825,11 +7876,9 @@ const API = {
     }
   },
 
-  // Get all products
   getProducts: async () => {
     try {
       console.log(`Fetching all products...`);
-      
       const data = await API.makeRequest(`/products`);
       
       if (data.success && data.products) {
@@ -7850,10 +7899,8 @@ const API = {
     }
   },
 
-  // Create new product
   createProduct: async (product) => {
     const vendorId = "default";
-
     const productData = {
       ...product,
       vendorId,
@@ -7890,7 +7937,6 @@ const API = {
     }
   },
 
-  // Update product
   updateProduct: async (id, updates) => {
     const updateData = {
       ...updates,
@@ -7929,7 +7975,6 @@ const API = {
     }
   },
 
-  // Delete product
   deleteProduct: async (id) => {
     try {
       console.log(`Deleting product ${id} via API`);
@@ -7953,7 +7998,6 @@ const API = {
     }
   },
 
-  // Bulk delete products
   bulkDelete: async (productIds) => {
     try {
       console.log(`Bulk deleting products via API:`, productIds);
@@ -7978,11 +8022,9 @@ const API = {
     }
   },
 
-  // Get product statistics
   getProductStats: async () => {
     try {
       console.log(`Fetching stats for all products...`);
-      
       const data = await API.makeRequest(`/products/stats`);
       
       if (data.success && data.stats) {
@@ -8011,7 +8053,6 @@ const API = {
     }
   },
 
-  // Get all vendors from products
   getVendors: async () => {
     try {
       const products = await API.getProducts();
@@ -8023,25 +8064,25 @@ const API = {
     }
   }
 };
-   
-// StatCard Component
+
+// StatCard Component - Responsive
 function StatCard({ title, value, icon, color }) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow p-4 sm:p-6 w-full">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-gray-500 text-sm">{title}</p>
-          <p className="text-3xl font-bold mt-2">{String(value)}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-gray-500 text-xs sm:text-sm truncate">{title}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1 sm:mt-2 truncate">{value}</p>
         </div>
-        <div className={`${color} text-white p-3 rounded-lg`}>
-          {icon}
+        <div className={`${color} text-white p-2 sm:p-3 rounded-lg flex-shrink-0 ml-2 sm:ml-4`}>
+          {React.cloneElement(icon, { size: window.innerWidth < 640 ? 20 : 24 })}
         </div>
       </div>
     </div>
   );
 }
 
-// Create Product Component
+// Create Product Component - Responsive
 function CreateProduct({ onSuccess }) {
   const initialProductState = {
     title: '',
@@ -8106,63 +8147,63 @@ function CreateProduct({ onSuccess }) {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Create New Product</h2>
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-2xl sm:text-3xl font-bold">Create New Product</h2>
+      <form onSubmit={handleSubmit} className="bg-white p-4 sm:p-6 lg:p-8 rounded-lg shadow space-y-4 sm:space-y-6">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded relative text-sm sm:text-base">
             <strong className="font-bold">Error!</strong>
             <span className="block sm:inline"> {error}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <label className="block">
-            <span className="text-gray-700">Product Title*</span>
+            <span className="text-gray-700 text-sm sm:text-base">Product Title*</span>
             <input
               type="text"
               name="title"
               value={product.title}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
               required
             />
           </label>
           <label className="block">
-            <span className="text-gray-700">Brand</span>
+            <span className="text-gray-700 text-sm sm:text-base">Brand</span>
             <input
               type="text"
               name="brand"
               value={product.brand}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             />
           </label>
 
           <label className="block">
-            <span className="text-gray-700">SKU*</span>
+            <span className="text-gray-700 text-sm sm:text-base">SKU*</span>
             <input
               type="text"
               name="sku"
               value={product.sku}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
               required
             />
           </label>
           <label className="block">
-            <span className="text-gray-700">Amazon Product ID (ASIN/ISBN/etc)</span>
+            <span className="text-gray-700 text-sm sm:text-base">Amazon Product ID</span>
             <input
               type="text"
               name="productId"
               value={product.productId}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             />
           </label>
 
           <label className="block">
-            <span className="text-gray-700">Price ($)*</span>
+            <span className="text-gray-700 text-sm sm:text-base">Price ($)*</span>
             <input
               type="number"
               name="price"
@@ -8170,12 +8211,12 @@ function CreateProduct({ onSuccess }) {
               onChange={handleChange}
               min="0.01"
               step="0.01"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
               required
             />
           </label>
           <label className="block">
-            <span className="text-gray-700">Quantity</span>
+            <span className="text-gray-700 text-sm sm:text-base">Quantity</span>
             <input
               type="number"
               name="quantity"
@@ -8183,28 +8224,28 @@ function CreateProduct({ onSuccess }) {
               onChange={handleChange}
               min="0"
               step="1"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             />
           </label>
 
           <label className="block">
-            <span className="text-gray-700">Category</span>
+            <span className="text-gray-700 text-sm sm:text-base">Category</span>
             <input
               type="text"
               name="category"
               value={product.category}
               onChange={handleChange}
               placeholder="e.g., Electronics, HomeGoods"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             />
           </label>
           <label className="block">
-            <span className="text-gray-700">Fulfillment</span>
+            <span className="text-gray-700 text-sm sm:text-base">Fulfillment</span>
             <select
               name="fulfillment"
               value={product.fulfillment}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             >
               <option value="FBM">FBM (Fulfilled by Merchant)</option>
               <option value="FBA">FBA (Fulfilled by Amazon)</option>
@@ -8212,43 +8253,43 @@ function CreateProduct({ onSuccess }) {
           </label>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <label className="block">
-            <span className="text-gray-700">Status</span>
+            <span className="text-gray-700 text-sm sm:text-base">Status</span>
             <select
               name="status"
               value={product.status}
               onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
           </label>
           <label className="block">
-            <span className="text-gray-700">Description</span>
+            <span className="text-gray-700 text-sm sm:text-base">Description</span>
             <textarea
               name="description"
               value={product.description}
               onChange={handleChange}
               rows="3"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2 text-sm sm:text-base"
             ></textarea>
           </label>
         </div>
 
-        <div className="border p-4 rounded-md">
-          <h4 className="text-lg font-semibold mb-2">Product Images (Placeholder)</h4>
+        <div className="border p-3 sm:p-4 rounded-md">
+          <h4 className="text-base sm:text-lg font-semibold mb-2">Product Images (Placeholder)</h4>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+            className="mt-1 block w-full text-xs sm:text-sm text-gray-500 file:mr-2 sm:file:mr-4 file:py-1 sm:file:py-2 file:px-2 sm:file:px-4 file:rounded-full file:border-0 file:text-xs sm:file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
           />
           {product.images.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {product.images?.map((img, index) => (
-                <div key={index} className="w-16 h-16 relative border rounded overflow-hidden">
+            <div className="mt-3 sm:mt-4 flex flex-wrap gap-2">
+              {product.images.map((img, index) => (
+                <div key={index} className="w-12 h-12 sm:w-16 sm:h-16 relative border rounded overflow-hidden">
                   <img src={img.preview} alt={img.alt} className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -8259,11 +8300,11 @@ function CreateProduct({ onSuccess }) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
+          className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm sm:text-base"
         >
           {isSubmitting ? 'Creating...' : (
             <>
-              <Plus size={20} />
+              <Plus size={16} className="sm:w-5 sm:h-5" />
               Create Product
             </>
           )}
@@ -8273,17 +8314,17 @@ function CreateProduct({ onSuccess }) {
   );
 }
 
-// Reports Component
+// Reports Component - Responsive
 function Reports({ products }) {
   const getInventoryReport = () => {
     return products.map(p => ({
-      'Product Title': p.title || '',
-      SKU: p.sku || '',
-      Price: `$${(parseFloat(p.price) || 0).toFixed(2)}`,
-      Quantity: p.quantity || 0,
-      'Total Value': `$${((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 0)).toFixed(2)}`,
-      Status: p.status || '',
-      Fulfillment: p.fulfillment || '',
+      'Product Title': p.title,
+      SKU: p.sku,
+      Price: `$${p.price.toFixed(2)}`,
+      Quantity: p.quantity,
+      'Total Value': `$${(p.price * p.quantity).toFixed(2)}`,
+      Status: p.status,
+      Fulfillment: p.fulfillment,
       Vendor: p.vendorId || 'default',
     }));
   };
@@ -8310,37 +8351,37 @@ function Reports({ products }) {
   const inventoryReport = getInventoryReport();
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Product Reports & Analytics</h2>
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-2xl sm:text-3xl font-bold">Product Reports & Analytics</h2>
       
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-xl font-bold flex items-center gap-2">
-          <BarChart3 className="text-blue-500" />
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-3 sm:space-y-4">
+        <h3 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+          <BarChart3 className="text-blue-500 w-5 h-5 sm:w-6 sm:h-6" />
           Inventory Data Export
         </h3>
-        <p className="text-gray-600">Generate and download a CSV file containing all product inventory details.</p>
+        <p className="text-gray-600 text-sm sm:text-base">Generate and download a CSV file containing all product inventory details.</p>
         <button
           onClick={() => downloadCSV(inventoryReport, 'product_inventory_report.csv')}
-          className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 flex items-center gap-2"
+          className="px-3 sm:px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto justify-center"
         >
-          <Download size={20} />
+          <Download size={16} className="sm:w-5 sm:h-5" />
           Download Full Inventory CSV
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <AlertTriangle className="text-red-500" />
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+          <AlertTriangle className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" />
           Low Stock Report (Quantity &lt; 10)
         </h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 text-sm sm:text-base">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -8348,15 +8389,15 @@ function Reports({ products }) {
                 .filter(p => (p.quantity || 0) > 0 && (p.quantity || 0) < 10)
                 .map((product) => (
                   <tr key={product._id || product.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.title || ''}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.sku || ''}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-600">{product.quantity || 0}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.vendorId || 'default'}</td>
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.title}</td>
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">{product.sku}</td>
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-bold text-red-600">{product.quantity}</td>
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">{product.vendorId || 'default'}</td>
                   </tr>
                 ))}
               {products.filter(p => (p.quantity || 0) > 0 && (p.quantity || 0) < 10).length === 0 && (
                 <tr>
-                  <td colSpan="4" className="text-center py-4 text-gray-500">No low stock items currently.</td>
+                  <td colSpan="4" className="text-center py-4 text-gray-500 text-sm sm:text-base">No low stock items currently.</td>
                 </tr>
               )}
             </tbody>
@@ -8367,424 +8408,7 @@ function Reports({ products }) {
   );
 }
 
-// Dashboard Component
-function Dashboard({ stats, products }) {
-  const categoryBreakdown = products.reduce((acc, p) => {
-    const category = p.category || 'uncategorized';
-    acc[category] = (acc[category] || 0) + 1;
-    return acc;
-  }, {});
-
-  const statusBreakdown = products.reduce((acc, p) => {
-    const status = p.status || 'inactive';
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const vendorBreakdown = products.reduce((acc, p) => {
-    const vendor = p.vendorId || 'default';
-    acc[vendor] = (acc[vendor] || 0) + 1;
-    return acc;
-  }, {});
-
-  const getProductId = (product) => {
-    return product._id || product.id;
-  };
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold">Dashboard - All Products</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Products" value={stats.total} icon={<Package />} color="bg-blue-500" />
-        <StatCard title="Active Products" value={stats.active} icon={<TrendingUp />} color="bg-green-500" />
-        <StatCard title="Out of Stock" value={stats.outOfStock} icon={<AlertTriangle />} color="bg-red-500" />
-        <StatCard title="Low Stock Alert" value={stats.lowStock} icon={<AlertTriangle />} color="bg-orange-500" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Total Inventory Value</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">${(stats.totalValue || 0).toFixed(2)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">Average Price</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">${(stats.avgPrice || 0).toFixed(2)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">FBA Products</p>
-          <p className="text-2xl font-bold text-purple-600 mt-1">{stats.fbaCount || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-gray-500 text-sm">FBM Products</p>
-          <p className="text-2xl font-bold text-yellow-600 mt-1">{stats.fbmCount || 0}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold mb-4">Products by Category</h3>
-          <div className="space-y-3">
-            {Object.entries(categoryBreakdown).map(([category, count]) => (
-              <div key={category} className="flex items-center justify-between">
-                <span className="text-gray-700 capitalize">{category || 'Uncategorized'}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full" 
-                      style={{ width: `${(count / products.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-semibold text-gray-900 w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))}
-            {Object.keys(categoryBreakdown).length === 0 && (
-              <p className="text-gray-500 text-center py-4">No categories yet</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold mb-4">Products by Status</h3>
-          <div className="space-y-3">
-            {Object.entries(statusBreakdown).map(([status, count]) => (
-              <div key={status} className="flex items-center justify-between">
-                <span className="text-gray-700 capitalize">{status}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full ${
-                        status === 'active' ? 'bg-green-500' : 
-                        status === 'inactive' ? 'bg-gray-400' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${(count / products.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-semibold text-gray-900 w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))}
-            {Object.keys(statusBreakdown).length === 0 && (
-              <p className="text-gray-500 text-center py-4">No products yet</p>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold mb-4">Products by Vendor</h3>
-          <div className="space-y-3">
-            {Object.entries(vendorBreakdown).map(([vendor, count]) => (
-              <div key={vendor} className="flex items-center justify-between">
-                <span className="text-gray-700 capitalize">{vendor}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-24 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-purple-500 h-2 rounded-full" 
-                      style={{ width: `${(count / products.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="font-semibold text-gray-900 w-8 text-right">{count}</span>
-                </div>
-              </div>
-            ))}
-            {Object.keys(vendorBreakdown).length === 0 && (
-              <p className="text-gray-500 text-center py-4">No vendors yet</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold mb-4">Recent Products</h3>
-        <div className="space-y-2">
-          {products.slice(0, 5).map(product => (
-            <div key={getProductId(product)} className="flex justify-between items-center p-3 border rounded hover:bg-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
-                  {product.images && product.images.length > 0 ? (
-                    <img src={product.images[0].preview} alt={product.title} className="w-12 h-12 object-cover" />
-                  ) : (
-                    <Package size={20} className="text-gray-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">{product.title || 'Untitled Product'}</p>
-                  <p className="text-sm text-gray-500">SKU: {product.sku || 'N/A'} | Vendor: {product.vendorId || 'default'}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-green-600">${(parseFloat(product.price) || 0).toFixed(2)}</p>
-                <p className="text-sm text-gray-500">Stock: {product.quantity || 0}</p>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  product.fulfillment === 'FBA' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {product.fulfillment || 'FBM'}
-                </span>
-              </div>
-            </div>
-          ))}
-          {products.length === 0 && (
-            <div className="text-center py-12">
-              <Package size={64} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 text-lg mb-2">No products yet</p>
-              <p className="text-gray-400 text-sm">Create your first product to get started!</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {(stats.outOfStock > 0 || stats.lowStock > 0) && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <AlertTriangle className="text-orange-500" />
-            Inventory Alerts
-          </h3>
-          <div className="space-y-3">
-            {stats.outOfStock > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded p-4">
-                <p className="font-semibold text-red-800">{stats.outOfStock} product(s) out of stock</p>
-                <p className="text-sm text-red-600 mt-1">Review and restock these items immediately</p>
-              </div>
-            )}
-            {stats.lowStock > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded p-4">
-                <p className="font-semibold text-orange-800">{stats.lowStock} product(s) running low (less than 10 units)</p>
-                <p className="text-sm text-orange-600 mt-1">Consider restocking these items soon</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Product List Component
-function ProductList({ products, filters, setFilters, selectedProducts, setSelectedProducts, onRefresh }) {
-  const getProductId = (product) => {
-    return product._id || product.id;
-  };
-
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = !filters.search || 
-      (p.title && p.title.toLowerCase().includes(filters.search.toLowerCase())) ||
-      (p.sku && p.sku.toLowerCase().includes(filters.search.toLowerCase())) ||
-      (p.productId && p.productId.toLowerCase().includes(filters.search.toLowerCase())) ||
-      (p.vendorId && p.vendorId.toLowerCase().includes(filters.search.toLowerCase()));
-    
-    const matchesStatus = filters.status === 'all' || p.status === filters.status;
-    const matchesFulfillment = filters.fulfillment === 'all' || p.fulfillment === filters.fulfillment;
-    
-    return matchesSearch && matchesStatus && matchesFulfillment;
-  });
-
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedProducts(filteredProducts.map(p => getProductId(p)));
-    } else {
-      setSelectedProducts([]);
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (window.confirm(`Delete ${selectedProducts.length} products?`)) {
-      try {
-        await API.bulkDelete(selectedProducts);
-        setSelectedProducts([]);
-        onRefresh();
-      } catch (error) {
-        alert('Error deleting products: ' + error.message);
-      }
-    }
-  };
-
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm('Delete this product?')) {
-      try {
-        await API.deleteProduct(id);
-        onRefresh();
-      } catch (error) {
-        alert('Error deleting product: ' + error.message);
-      }
-    }
-  };
-
-  const handleEditProduct = (product) => {
-    alert(`Editing product: ${product.title} (ID: ${getProductId(product)})`);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">All Products ({products.length})</h2>
-        <div className="flex gap-2">
-          <button onClick={onRefresh} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search by Name, SKU, Product ID, Vendor..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded"
-            />
-          </div>
-          
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="outofstock">Out of Stock</option>
-          </select>
-          
-          <select
-            value={filters.fulfillment}
-            onChange={(e) => setFilters({ ...filters, fulfillment: e.target.value })}
-            className="px-4 py-2 border border-gray-300 rounded"
-          >
-            <option value="all">All Fulfillment</option>
-            <option value="FBA">FBA</option>
-            <option value="FBM">FBM</option>
-          </select>
-        </div>
-      </div>
-
-      {selectedProducts.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-center justify-between">
-          <span className="font-semibold">{selectedProducts.length} products selected</span>
-          <button onClick={handleBulkDelete} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-            Delete Selected
-          </button>
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="p-4 text-left">
-                <input
-                  type="checkbox"
-                  onChange={handleSelectAll}
-                  checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
-                />
-              </th>
-              <th className="p-4 text-left">Product</th>
-              <th className="p-4 text-left">SKU</th>
-              <th className="p-4 text-left">Vendor</th>
-              <th className="p-4 text-left">Status</th>
-              <th className="p-4 text-left">Price</th>
-              <th className="p-4 text-left">Quantity</th>
-              <th className="p-4 text-left">Fulfillment</th>
-              <th className="p-4 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map(product => (
-              <tr key={getProductId(product)} className="border-b hover:bg-gray-50">
-                <td className="p-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedProducts.includes(getProductId(product))}
-                    onChange={(e) => {
-                      const productId = getProductId(product);
-                      if (e.target.checked) {
-                        setSelectedProducts([...selectedProducts, productId]);
-                      } else {
-                        setSelectedProducts(selectedProducts.filter(id => id !== productId));
-                      }
-                    }}
-                  />
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center overflow-hidden">
-                      {product.images && product.images.length > 0 ? (
-                        <img src={product.images[0].preview} alt={product.title} className="w-12 h-12 object-cover" />
-                      ) : (
-                        <Package size={20} className="text-gray-400" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{product.title || 'Untitled Product'}</p>
-                      <p className="text-sm text-gray-500">{product.brand || ''}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 font-mono text-sm">{product.sku || ''}</td>
-                <td className="p-4">
-                  <span className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">
-                    {product.vendorId || 'default'}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    product.status === 'active' ? 'bg-green-100 text-green-800' :
-                    product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {(product.status || 'inactive').toUpperCase()}
-                  </span>
-                </td>
-                <td className="p-4 font-semibold">${(parseFloat(product.price) || 0).toFixed(2)}</td>
-                <td className="p-4">
-                  <span className={(product.quantity || 0) < 10 ? 'text-red-600 font-semibold' : ''}>
-                    {product.quantity || 0}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    product.fulfillment === 'FBA' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {product.fulfillment || 'FBM'}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleEditProduct(product)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(getProductId(product))}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        
-        {filteredProducts.length === 0 && (
-          <div className="p-12 text-center text-gray-500">
-            <Filter size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-lg font-semibold">No products match your filters.</p>
-            <p className="text-sm">Try adjusting your search or filter selections.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Main App Component
+// Main App Component - Fully Responsive
 export default function AmazonProductManager() {
   const [view, setView] = useState('dashboard');
   const [products, setProducts] = useState([]);
@@ -8805,6 +8429,7 @@ export default function AmazonProductManager() {
     totalValue: 0,
     avgPrice: 0
   });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -8848,38 +8473,112 @@ export default function AmazonProductManager() {
     }
   };
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-900 text-white p-4 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Amazon Product Manager</h1>
-            <div className="flex items-center gap-2 bg-gray-800 px-3 py-2 rounded">
-              <User size={18} />
-              <span className="text-sm">All Products</span>
+      {/* Header - Responsive */}
+      <header className="bg-gray-900 text-white p-3 sm:p-4 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <button 
+                onClick={toggleMobileMenu}
+                className="lg:hidden p-2 rounded hover:bg-gray-800 transition-colors"
+              >
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              <h1 className="text-xl sm:text-2xl font-bold truncate">Amazon Product Manager</h1>
+              <div className="hidden sm:flex items-center gap-2 bg-gray-800 px-3 py-2 rounded">
+                <User size={16} className="sm:w-4 sm:h-4" />
+                <span className="text-sm">All Products</span>
+              </div>
             </div>
+            
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex gap-2">
+              <button 
+                onClick={() => setView('dashboard')} 
+                className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base transition-colors ${
+                  view === 'dashboard' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button 
+                onClick={() => setView('products')} 
+                className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base transition-colors ${
+                  view === 'products' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Products
+              </button>
+              <button 
+                onClick={() => setView('create')} 
+                className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base transition-colors ${
+                  view === 'create' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Create Product
+              </button>
+              <button 
+                onClick={() => setView('reports')} 
+                className={`px-3 sm:px-4 py-2 rounded text-sm sm:text-base transition-colors ${
+                  view === 'reports' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Reports
+              </button>
+            </nav>
           </div>
-          <nav className="flex gap-4">
-            <button onClick={() => setView('dashboard')} className={`px-4 py-2 rounded ${view === 'dashboard' ? 'bg-orange-500' : 'hover:bg-gray-800'}`}>
-              Dashboard
-            </button>
-            <button onClick={() => setView('products')} className={`px-4 py-2 rounded ${view === 'products' ? 'bg-orange-500' : 'hover:bg-gray-800'}`}>
-              Products
-            </button>
-            <button onClick={() => setView('create')} className={`px-4 py-2 rounded ${view === 'create' ? 'bg-orange-500' : 'hover:bg-gray-800'}`}>
-              Create Product
-            </button>
-            <button onClick={() => setView('reports')} className={`px-4 py-2 rounded ${view === 'reports' ? 'bg-orange-500' : 'hover:bg-gray-800'}`}>
-              Reports
-            </button>
-          </nav>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <nav className="lg:hidden mt-3 space-y-2 border-t border-gray-700 pt-3">
+              <button 
+                onClick={() => { setView('dashboard'); setMobileMenuOpen(false); }} 
+                className={`block w-full text-left px-3 py-2 rounded text-base transition-colors ${
+                  view === 'dashboard' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button 
+                onClick={() => { setView('products'); setMobileMenuOpen(false); }} 
+                className={`block w-full text-left px-3 py-2 rounded text-base transition-colors ${
+                  view === 'products' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Products
+              </button>
+              <button 
+                onClick={() => { setView('create'); setMobileMenuOpen(false); }} 
+                className={`block w-full text-left px-3 py-2 rounded text-base transition-colors ${
+                  view === 'create' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Create Product
+              </button>
+              <button 
+                onClick={() => { setView('reports'); setMobileMenuOpen(false); }} 
+                className={`block w-full text-left px-3 py-2 rounded text-base transition-colors ${
+                  view === 'reports' ? 'bg-orange-500' : 'hover:bg-gray-800'
+                }`}
+              >
+                Reports
+              </button>
+            </nav>
+          )}
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-6">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading products...</div>
+          <div className="flex items-center justify-center h-48 sm:h-64">
+            <div className="text-gray-500 text-sm sm:text-base">Loading products...</div>
           </div>
         ) : (
           <>
@@ -8901,12 +8600,500 @@ export default function AmazonProductManager() {
         )}
       </main>
 
+      {/* Floating Action Button - Responsive */}
       <button
         onClick={() => setView('create')}
-        className="fixed bottom-8 right-8 bg-orange-500 text-white p-4 rounded-full shadow-lg hover:bg-orange-600 transition-all"
+        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 bg-orange-500 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-orange-600 transition-all z-40"
       >
-        <Plus size={24} />
+        <Plus size={20} className="sm:w-6 sm:h-6" />
       </button>
+    </div>
+  );
+}
+
+// Dashboard Component - Fully Responsive
+function Dashboard({ stats, products }) {
+  const categoryBreakdown = products.reduce((acc, p) => {
+    const category = p.category || 'uncategorized';
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
+  const statusBreakdown = products.reduce((acc, p) => {
+    const status = p.status || 'inactive';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const vendorBreakdown = products.reduce((acc, p) => {
+    const vendor = p.vendorId || 'default';
+    acc[vendor] = (acc[vendor] || 0) + 1;
+    return acc;
+  }, {});
+
+  const getProductId = (product) => {
+    return product._id || product.id;
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <h2 className="text-2xl sm:text-3xl font-bold">Dashboard - All Products</h2>
+      
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+        <StatCard title="Total Products" value={stats.total} icon={<Package />} color="bg-blue-500" />
+        <StatCard title="Active Products" value={stats.active} icon={<TrendingUp />} color="bg-green-500" />
+        <StatCard title="Out of Stock" value={stats.outOfStock} icon={<AlertTriangle />} color="bg-red-500" />
+        <StatCard title="Low Stock Alert" value={stats.lowStock} icon={<AlertTriangle />} color="bg-orange-500" />
+      </div>
+
+      {/* Secondary Stats - Responsive Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+          <p className="text-gray-500 text-xs sm:text-sm">Total Inventory Value</p>
+          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 mt-1 truncate">${stats.totalValue?.toFixed(2) || '0.00'}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+          <p className="text-gray-500 text-xs sm:text-sm">Average Price</p>
+          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600 mt-1 truncate">${stats.avgPrice?.toFixed(2) || '0.00'}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+          <p className="text-gray-500 text-xs sm:text-sm">FBA Products</p>
+          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600 mt-1 truncate">{stats.fbaCount || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+          <p className="text-gray-500 text-xs sm:text-sm">FBM Products</p>
+          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-600 mt-1 truncate">{stats.fbmCount || 0}</p>
+        </div>
+      </div>
+
+      {/* Breakdown Sections - Responsive Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Products by Category</h3>
+          <div className="space-y-2 sm:space-y-3">
+            {Object.entries(categoryBreakdown).map(([category, count]) => (
+              <div key={category} className="flex items-center justify-between">
+                <span className="text-gray-700 text-sm sm:text-base capitalize truncate pr-2">{category || 'Uncategorized'}</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-20 lg:w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full" 
+                      style={{ width: `${(count / products.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-gray-900 w-6 sm:w-8 text-right text-sm">{count}</span>
+                </div>
+              </div>
+            ))}
+            {Object.keys(categoryBreakdown).length === 0 && (
+              <p className="text-gray-500 text-center py-3 sm:py-4 text-sm sm:text-base">No categories yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Products by Status</h3>
+          <div className="space-y-2 sm:space-y-3">
+            {Object.entries(statusBreakdown).map(([status, count]) => (
+              <div key={status} className="flex items-center justify-between">
+                <span className="text-gray-700 text-sm sm:text-base capitalize truncate pr-2">{status}</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-20 lg:w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full ${
+                        status === 'active' ? 'bg-green-500' : 
+                        status === 'inactive' ? 'bg-gray-400' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${(count / products.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-gray-900 w-6 sm:w-8 text-right text-sm">{count}</span>
+                </div>
+              </div>
+            ))}
+            {Object.keys(statusBreakdown).length === 0 && (
+              <p className="text-gray-500 text-center py-3 sm:py-4 text-sm sm:text-base">No products yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Products by Vendor</h3>
+          <div className="space-y-2 sm:space-y-3">
+            {Object.entries(vendorBreakdown).map(([vendor, count]) => (
+              <div key={vendor} className="flex items-center justify-between">
+                <span className="text-gray-700 text-sm sm:text-base capitalize truncate pr-2">{vendor}</span>
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <div className="w-16 sm:w-20 lg:w-24 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-purple-500 h-2 rounded-full" 
+                      style={{ width: `${(count / products.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-gray-900 w-6 sm:w-8 text-right text-sm">{count}</span>
+                </div>
+              </div>
+            ))}
+            {Object.keys(vendorBreakdown).length === 0 && (
+              <p className="text-gray-500 text-center py-3 sm:py-4 text-sm sm:text-base">No vendors yet</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Products */}
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Recent Products</h3>
+        <div className="space-y-2">
+          {products.slice(0, 5).map(product => (
+            <div key={getProductId(product)} className="flex justify-between items-center p-2 sm:p-3 border rounded hover:bg-gray-50">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-200 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {product.images && product.images.length > 0 ? (
+                    <img src={product.images[0].preview} alt={product.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <Package size={14} className="sm:w-4 sm:h-4 text-gray-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm sm:text-base truncate">{product.title || 'Untitled Product'}</p>
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">SKU: {product.sku} | Vendor: {product.vendorId || 'default'}</p>
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0 ml-2">
+                <p className="font-bold text-green-600 text-sm sm:text-base">${product.price || '0.00'}</p>
+                <p className="text-xs sm:text-sm text-gray-500">Stock: {product.quantity || 0}</p>
+                <span className={`px-1 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-semibold ${
+                  product.fulfillment === 'FBA' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {product.fulfillment || 'FBM'}
+                </span>
+              </div>
+            </div>
+          ))}
+          {products.length === 0 && (
+            <div className="text-center py-8 sm:py-12">
+              <Package size={48} className="mx-auto text-gray-300 mb-3 sm:mb-4" />
+              <p className="text-gray-500 text-base sm:text-lg mb-2">No products yet</p>
+              <p className="text-gray-400 text-sm sm:text-base">Create your first product to get started!</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Alerts Section */}
+      {(stats.outOfStock > 0 || stats.lowStock > 0) && (
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
+            <AlertTriangle className="text-orange-500 w-5 h-5 sm:w-6 sm:h-6" />
+            Inventory Alerts
+          </h3>
+          <div className="space-y-2 sm:space-y-3">
+            {stats.outOfStock > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded p-3 sm:p-4">
+                <p className="font-semibold text-red-800 text-sm sm:text-base">{stats.outOfStock} product(s) out of stock</p>
+                <p className="text-xs sm:text-sm text-red-600 mt-1">Review and restock these items immediately</p>
+              </div>
+            )}
+            {stats.lowStock > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded p-3 sm:p-4">
+                <p className="font-semibold text-orange-800 text-sm sm:text-base">{stats.lowStock} product(s) running low (less than 10 units)</p>
+                <p className="text-xs sm:text-sm text-orange-600 mt-1">Consider restocking these items soon</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Product List Component - Fully Responsive
+function ProductList({ products, filters, setFilters, selectedProducts, setSelectedProducts, onRefresh }) {
+  const getProductId = (product) => {
+    return product._id || product.id;
+  };
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = !filters.search || 
+      (p.title && p.title.toLowerCase().includes(filters.search.toLowerCase())) ||
+      (p.sku && p.sku.toLowerCase().includes(filters.search.toLowerCase())) ||
+      (p.productId && p.productId.toLowerCase().includes(filters.search.toLowerCase())) ||
+      (p.vendorId && p.vendorId.toLowerCase().includes(filters.search.toLowerCase()));
+    
+    const matchesStatus = filters.status === 'all' || p.status === filters.status;
+    const matchesFulfillment = filters.fulfillment === 'all' || p.fulfillment === filters.fulfillment;
+    
+    return matchesSearch && matchesStatus && matchesFulfillment;
+  });
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedProducts(filteredProducts.map(p => getProductId(p)));
+    } else {
+      setSelectedProducts([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Delete ${selectedProducts.length} products?`)) {
+      try {
+        await API.bulkDelete(selectedProducts);
+        setSelectedProducts([]);
+        onRefresh();
+      } catch (error) {
+        alert('Error deleting products: ' + error.message);
+      }
+    }
+  };
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm('Delete this product?')) {
+      try {
+        await API.deleteProduct(id);
+        onRefresh();
+      } catch (error) {
+        alert('Error deleting product: ' + error.message);
+      }
+    }
+  };
+
+  const handleEditProduct = (product) => {
+    alert(`Editing product: ${product.title} (ID: ${getProductId(product)})`);
+  };
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h2 className="text-2xl sm:text-3xl font-bold">All Products ({products.length})</h2>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button onClick={onRefresh} className="px-3 sm:px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm sm:text-base flex-1 sm:flex-none">
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Filters - Responsive */}
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+            <input
+              type="text"
+              placeholder="Search by Name, SKU, Product ID, Vendor..."
+              value={filters.search}
+              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 border rounded text-sm sm:text-base"
+            />
+          </div>
+          
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            className="px-3 sm:px-4 py-2 border rounded text-sm sm:text-base"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="outofstock">Out of Stock</option>
+          </select>
+          
+          <select
+            value={filters.fulfillment}
+            onChange={(e) => setFilters({ ...filters, fulfillment: e.target.value })}
+            className="px-3 sm:px-4 py-2 border rounded text-sm sm:text-base"
+          >
+            <option value="all">All Fulfillment</option>
+            <option value="FBA">FBA</option>
+            <option value="FBM">FBM</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Bulk Actions */}
+      {selectedProducts.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+          <span className="font-semibold text-sm sm:text-base">{selectedProducts.length} products selected</span>
+          <button onClick={handleBulkDelete} className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm sm:text-base w-full sm:w-auto">
+            Delete Selected
+          </button>
+        </div>
+      )}
+
+      {/* Products Table - Responsive */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="p-2 sm:p-3 lg:p-4 text-left">
+                  <input
+                    type="checkbox"
+                    onChange={handleSelectAll}
+                    checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                    className="w-4 h-4"
+                  />
+                </th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">SKU</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Vendor</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Qty</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Fulfillment</th>
+                <th className="p-2 sm:p-3 lg:p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentProducts.map(product => (
+                <tr key={getProductId(product)} className="border-b hover:bg-gray-50">
+                  <td className="p-2 sm:p-3 lg:p-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedProducts.includes(getProductId(product))}
+                      onChange={(e) => {
+                        const productId = getProductId(product);
+                        if (e.target.checked) {
+                          setSelectedProducts([...selectedProducts, productId]);
+                        } else {
+                          setSelectedProducts(selectedProducts.filter(id => id !== productId));
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-200 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {product.images && product.images.length > 0 ? (
+                          <img src={product.images[0].preview} alt={product.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={14} className="sm:w-4 sm:h-4 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm sm:text-base truncate">{product.title || 'Untitled Product'}</p>
+                        <p className="text-xs text-gray-500 truncate sm:hidden">SKU: {product.sku}</p>
+                        <p className="text-xs text-gray-500 truncate hidden sm:block lg:hidden">Vendor: {product.vendorId || 'default'}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4 font-mono text-sm hidden sm:table-cell">{product.sku}</td>
+                  <td className="p-2 sm:p-3 lg:p-4 hidden lg:table-cell">
+                    <span className="px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-800">
+                      {product.vendorId || 'default'}
+                    </span>
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      product.status === 'active' ? 'bg-green-100 text-green-800' :
+                      product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {(product.status || 'inactive')?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4 font-semibold text-sm sm:text-base">${product.price || '0.00'}</td>
+                  <td className="p-2 sm:p-3 lg:p-4 hidden md:table-cell">
+                    <span className={(product.quantity || 0) < 10 ? 'text-red-600 font-semibold text-sm sm:text-base' : 'text-sm sm:text-base'}>
+                      {product.quantity || 0}
+                    </span>
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4 hidden sm:table-cell">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      product.fulfillment === 'FBA' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {product.fulfillment || 'FBM'}
+                    </span>
+                  </td>
+                  <td className="p-2 sm:p-3 lg:p-4">
+                    <div className="flex gap-1 sm:gap-2">
+                      <button 
+                        onClick={() => handleEditProduct(product)}
+                        className="p-1 sm:p-2 text-blue-600 hover:bg-blue-50 rounded text-sm"
+                      >
+                        <Edit size={14} className="sm:w-4 sm:h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(getProductId(product))}
+                        className="p-1 sm:p-2 text-red-600 hover:bg-red-50 rounded text-sm"
+                      >
+                        <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination - Responsive */}
+        {filteredProducts.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between p-3 sm:p-4 border-t bg-gray-50 gap-3 sm:gap-0">
+            <p className="text-xs sm:text-sm text-gray-600">
+              Showing {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length}
+            </p>
+
+            <div className="flex gap-1 sm:gap-2 flex-wrap justify-center">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className={`px-2 sm:px-3 py-1 border rounded text-xs sm:text-sm ${
+                  currentPage === 1
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-white hover:bg-gray-100"
+                }`}
+              >
+                Previous
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-2 sm:px-3 py-1 border rounded text-xs sm:text-sm ${
+                    currentPage === page
+                      ? "bg-blue-500 text-white"
+                      : "bg-white hover:bg-gray-100"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className={`px-2 sm:px-3 py-1 border rounded text-xs sm:text-sm ${
+                  currentPage === totalPages
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-white hover:bg-gray-100"
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {filteredProducts.length === 0 && (
+          <div className="p-8 sm:p-12 text-center text-gray-500">
+            <Filter size={32} className="sm:w-12 sm:h-12 mx-auto text-gray-300 mb-3 sm:mb-4" />
+            <p className="text-base sm:text-lg font-semibold">No products match your filters.</p>
+            <p className="text-sm sm:text-base">Try adjusting your search or filter selections.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
