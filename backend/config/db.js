@@ -81,7 +81,45 @@
 //   }
 // };
 
-import mongoose from "mongoose";
+// import mongoose from "mongoose";
+
+// const dropValidationIfExists = async () => {
+//   try {
+//     const db = mongoose.connection.db;
+//     const collections = await db.listCollections({ name: "users" }).toArray();
+//     if (collections.length > 0) {
+//       await db.command({
+//         collMod: "users",
+//         validator: {},
+//         validationLevel: "off",
+//       });
+//       console.log("✅ Removed existing validation from 'users' collection");
+//     }
+//   } catch {
+//     console.log("ℹ️ No validation found or collection doesn't exist");
+//   }
+// };
+
+// const connectDB = async () => {
+//   try {
+//     await mongoose.connect(process.env.MONGO_URI, {
+//       dbName: process.env.DB_NAME,
+//       maxPoolSize: 10,
+//     });
+//     console.log("✅ MongoDB Connected:", process.env.DB_NAME);
+//     await dropValidationIfExists();
+//   } catch (err) {
+//     console.error("❌ MongoDB connection error:", err.message);
+//     process.exit(1);
+//   }
+// };
+
+// export default connectDB;
+
+
+
+// config/database.js
+const mongoose = require('mongoose');
 
 const dropValidationIfExists = async () => {
   try {
@@ -102,16 +140,51 @@ const dropValidationIfExists = async () => {
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      dbName: process.env.DB_NAME,
-      maxPoolSize: 10,
-    });
-    console.log("✅ MongoDB Connected:", process.env.DB_NAME);
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ecommerce';
+    
+    console.log(`🔗 Connecting to MongoDB: ${mongoURI}`);
+    
+    const options = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    };
+
+    await mongoose.connect(mongoURI, options);
+    
+    console.log('✅ MongoDB Connected Successfully');
+    
     await dropValidationIfExists();
-  } catch (err) {
-    console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
+    
+    // MongoDB connection event handlers
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️  MongoDB disconnected');
+    });
+    
+    return mongoose.connection;
+    
+  } catch (error) {
+    console.error('❌ MongoDB Connection Error:', error.message);
+    
+    if (error.message.includes('ECONNREFUSED')) {
+      console.log('\n💡 MongoDB is not running. Please start it:');
+      console.log('   For Windows: mongod --dbpath "C:\\data\\db"');
+      console.log('   Or install as service: net start MongoDB');
+    }
+    
+    // Don't exit in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('⚠️  Continuing without database (development mode)');
+      return null;
+    } else {
+      throw error;
+    }
   }
 };
 
-export default connectDB;
+module.exports = connectDB;

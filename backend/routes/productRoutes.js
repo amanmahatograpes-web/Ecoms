@@ -1,103 +1,87 @@
-// // // routes/productRoutes.js
-// // const express = require('express');
-// // const router = express.Router();
-// // const multer = require('multer');
-// // const path = require('path');
-// // const productController = require('../controller/productController');
-
-// // // simple disk storage for csv/uploads
-// // const uploadDir = path.join(__dirname, '..', 'uploads');
-// // const storage = multer.diskStorage({
-// //   destination: (req, file, cb) => {
-// //     cb(null, uploadDir);
-// //   },
-// //   filename: (req, file, cb) => {
-// //     cb(null, Date.now() + '-' + file.originalname);
-// //   }
-// // });
-// // const upload = multer({ storage });
-
-// // router.get('/', productController.list);
-// // router.get('/:id', productController.getOne);
-// // router.post('/', productController.create);
-// // router.put('/:id', productController.update);
-// // router.delete('/:id', productController.remove);
-
-// // router.patch('/bulk-update', productController.bulkUpdate);
-// // router.post('/bulk-delete', productController.bulkDelete);
-
-// // // CSV bulk upload endpoint: form-data key 'file'
-// // router.post('/bulk-upload', upload.single('file'), productController.bulkUploadCSV);
-
-// // module.exports = router;
-
-
-
-// import express from "express";
-// import {
-//   getProducts,
-//   getProductById,
-//   createProduct,
-//   updateProduct,
-//   deleteProduct,
-//   bulkDeleteProducts,
-// } from "../controller/productController.js";
-
-// const router = express.Router();
-
-// // Get all products (with vendor filter)
-// router.get("/", getProducts);
-
-// // Get single product by ID
-// router.get("/:id", getProductById);
-
-// // Create new product
-// router.post("/", createProduct);
-
-// // Update product
-// router.put("/:id", updateProduct);
-
-// // Delete product
-// router.delete("/:id", deleteProduct);
-
-// // Bulk delete products
-// router.post("/bulk-delete", bulkDeleteProducts);
-
-// export default router;
-
-
 import express from "express";
-import {
-  getProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  bulkDeleteProducts,
-  getProductStats,
-} from "../controller/productController.js";
+import Product from "../models/Product.js";
 
 const router = express.Router();
 
-// Get all products (with vendor filter)
-router.get("/", getProducts);
+/**
+ * CREATE PRODUCT
+ */
+router.post("/", async (req, res) => {
+  try {
+    console.log("📥 Received Product Data:", req.body);
 
-// Get product statistics
-router.get("/stats", getProductStats);
+    const product = await Product.create(req.body);
 
-// Get single product by ID
-router.get("/:id", getProductById);
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      data: product,
+    });
+  } catch (error) {
+    console.error("❌ Product Create Error:", error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
 
-// Create new product
-router.post("/", createProduct);
+/**
+ * GET ALL PRODUCTS
+ */
+router.get("/", async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.json({ success: true, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
-// Update product
-router.put("/:id", updateProduct);
+/**
+ * GET SINGLE PRODUCT
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
 
-// Delete product
-router.delete("/:id", deleteProduct);
+    if (!product)
+      return res.status(404).json({ success: false, message: "Product not found" });
 
-// Bulk delete products
-router.post("/bulk-delete", bulkDeleteProducts);
+    res.json({ success: true, data: product });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * UPDATE PRODUCT
+ */
+router.put("/:id", async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Product updated successfully",
+      data: product,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * DELETE PRODUCT
+ */
+router.delete("/:id", async (req, res) => {
+  try {
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "Product deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
 
 export default router;
