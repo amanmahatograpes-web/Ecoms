@@ -142,10 +142,10 @@ const generateTrialSubscription = async (planId, userId, trialDays = 14) => {
 
 /**
  * @desc    Get all subscription plans
- * @route   GET /api/v1/plans
+ * @route   POST /api/v1/plans
  * @access  Public
  */
-router.get(
+router.post(
   '/',
   asyncHandler(async (req, res) => {
     const {
@@ -158,7 +158,7 @@ router.get(
       search,
       sortBy = 'currentPrice',
       sortOrder = 'asc'
-    } = req.query;
+    } = req.body;
 
     // Build filter
     const filter = { isActive };

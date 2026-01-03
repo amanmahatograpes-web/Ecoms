@@ -57,7 +57,22 @@ const RangeSlider = ({ label, value, min, max, step, onChange, unit, isMobile, f
   </div>
 );
 
-// 3. PaymentModal Component
+// ============= CONSTANTS =============
+const MARKET_CONDITIONS = {
+  DEMAND_LEVELS: [
+    { label: 'High Demand', value: 'high', multiplier: 1.1 },
+    { label: 'Normal', value: 'normal', multiplier: 1.0 },
+    { label: 'Low Demand', value: 'low', multiplier: 0.9 }
+  ],
+  SEASONS: [
+    { label: 'Peak Season', value: 'peak', multiplier: 1.15 },
+    { label: 'Regular', value: 'regular', multiplier: 1.0 },
+    { label: 'Off Season', value: 'off', multiplier: 0.85 }
+  ]
+};
+
+// ============= COMPONENTS =============
+
 // 3. PaymentModal Component (Updated)
 const PaymentModal = ({ 
   isOpen, 
@@ -67,7 +82,8 @@ const PaymentModal = ({
   activeCoupons, 
   formatIndianRupees,
   displayWithTax,
-  onPaymentSuccess 
+  onPaymentSuccess,
+  setSuccessMessage 
 }) => {
   const [paymentMethod, setPaymentMethod] = useState('credit_card');
   const [paymentDetails, setPaymentDetails] = useState({
@@ -88,8 +104,7 @@ const PaymentModal = ({
   const [otp, setOtp] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   
-  // Get user from localStorage
-  const [user, setUser] = useState(() => {
+  const [user] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}');
     } catch (error) {
@@ -97,18 +112,16 @@ const PaymentModal = ({
     }
   });
 
-  if (!isOpen) return null;
-
-  const calculatePrice = (basePrice) => {
+  const calculatePrice = useCallback((basePrice) => {
     const tax = displayWithTax ? basePrice * 0.18 : 0;
     return basePrice + tax;
-  };
+  }, [displayWithTax]);
 
-  const monthlyPrice = calculatePrice(plan.currentPrice);
-  const annualPrice = calculatePrice(plan.currentPrice * 12 * (1 - annualDiscount / 100));
+  const monthlyPrice = useMemo(() => calculatePrice(plan?.currentPrice || 0), [plan, calculatePrice]);
+  const annualPrice = useMemo(() => calculatePrice((plan?.currentPrice || 0) * 12 * (1 - annualDiscount / 100)), [plan, annualDiscount, calculatePrice]);
   
-  const totalCouponDiscount = activeCoupons.reduce((sum, c) => sum + c.discount, 0);
-  const finalPrice = monthlyPrice * (1 - totalCouponDiscount / 100);
+  const totalCouponDiscount = useMemo(() => activeCoupons.reduce((sum, c) => sum + c.discount, 0), [activeCoupons]);
+  const finalPrice = useMemo(() => monthlyPrice * (1 - totalCouponDiscount / 100), [monthlyPrice, totalCouponDiscount]);
 
   const handleCardNumberChange = (e) => {
     let value = e.target.value.replace(/\D/g, '');
@@ -166,71 +179,92 @@ const PaymentModal = ({
     return true;
   };
 
-  // In your PaymentModal component, update handlePaymentSubmit:
- // Replace the apiService calls with these safe versions:
-const handlePaymentSubmit = async () => {
-  if (!validatePaymentDetails()) return;
-
-  setIsProcessing(true);
-  setPaymentError('');
-
-  try {
-    const user = getUser();
-    
-    // For demo purposes - bypass API call if backend is not available
-    const isBackendAvailable = await checkBackendAvailability();
-    
-    if (!isBackendAvailable) {
-      // Show demo mode
-      setShowOtpInput(true);
-      setSuccessMessage('Demo mode: Simulating payment (backend not available)');
-      setIsProcessing(false);
-      return;
+  const checkBackendAvailability = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/health', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache'
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
     }
-    
-    // Real API call
-    const paymentResponse = await apiService.initializePayment({
-      planId: plan._id,
-      paymentMethod: paymentMethod,
-      couponCode: activeCoupons.map(c => c.code).join(','),
-      billingAddress: {
-        name: paymentDetails.cardName || user?.name || 'Customer',
-        email: user?.email || '',
-        phone: user?.phone || '',
-        address: user?.address || '',
-        city: user?.city || '',
-        state: user?.state || '',
-        country: user?.country || 'IN',
-        pincode: user?.pincode || ''
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!validatePaymentDetails()) return;
+
+    setIsProcessing(true);
+    setPaymentError('');
+
+    try {
+      const isBackendAvailable = await checkBackendAvailability();
+      
+      if (!isBackendAvailable) {
+        const demoOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        localStorage.setItem('demoOtp', demoOtp);
+        localStorage.setItem('demoOtpExpiry', (Date.now() + 300000).toString());
+        
+        setShowOtpInput(true);
+        setSuccessMessage && setSuccessMessage('Demo mode: OTP sent to your phone. Enter: ' + demoOtp);
+        setIsProcessing(false);
+        return;
       }
-    });
-    
-    // ... rest of your code
-  } catch (error) {
-    console.error('Payment error:', error);
-    // Show user-friendly error
-    if (error.isNetworkError) {
-      setPaymentError('Cannot connect to payment server. Please check your internet connection.');
-    } else {
-      setPaymentError(error.message || 'Payment failed. Please try again.');
+      
+      const paymentResponse = await apiService.initializePayment({
+        planId: plan?._id,
+        planName: plan?.name,
+        amount: finalPrice,
+        paymentMethod: paymentMethod,
+        couponCode: activeCoupons.map(c => c.code).join(','),
+        customerDetails: {
+          name: paymentDetails.cardName || user?.name || 'Customer',
+          email: user?.email || '',
+          phone: user?.phone || '',
+          address: user?.address || '',
+          city: user?.city || '',
+          state: user?.state || '',
+          country: user?.country || 'IN',
+          pincode: user?.pincode || ''
+        }
+      });
+      
+      if (paymentResponse.success) {
+        localStorage.setItem('paymentId', paymentResponse.data.paymentId || plan?._id);
+        setShowOtpInput(true);
+        
+        setPaymentDetails(prev => ({
+          ...prev,
+          paymentId: paymentResponse.data.paymentId,
+          amount: finalPrice,
+          planId: plan?._id
+        }));
+        
+        setSuccessMessage && setSuccessMessage('OTP sent to your registered mobile number');
+      } else {
+        setPaymentError(paymentResponse.message || 'Payment initialization failed');
+      }
+      
+      setIsProcessing(false);
+      
+    } catch (error) {
+      console.error('Payment error:', error);
+      
+      if (error.message?.includes('Network') || error.message?.includes('Failed to fetch')) {
+        const demoOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        localStorage.setItem('demoOtp', demoOtp);
+        localStorage.setItem('demoOtpExpiry', (Date.now() + 300000).toString());
+        
+        setShowOtpInput(true);
+        setSuccessMessage && setSuccessMessage('Network issue. Demo mode: Enter OTP: ' + demoOtp);
+      } else {
+        setPaymentError(error.message || 'Payment failed. Please try again.');
+      }
+      
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
-  }
-};
-
-// Add this helper function
-const checkBackendAvailability = async () => {
-  try {
-    const response = await fetch('http://localhost:8000/health', {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-cache'
-    });
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
-};
+  };
 
   const handleOtpSubmit = async () => {
     if (otp.length !== 6) {
@@ -242,10 +276,57 @@ const checkBackendAvailability = async () => {
     setPaymentError('');
 
     try {
-      // Verify OTP with backend
+      const isBackendAvailable = await checkBackendAvailability();
+      
+      if (!isBackendAvailable) {
+        const storedOtp = localStorage.getItem('demoOtp');
+        const otpExpiry = localStorage.getItem('demoOtpExpiry');
+        
+        if (!storedOtp || !otpExpiry) {
+          setPaymentError('OTP expired. Please try payment again.');
+          setIsProcessing(false);
+          return;
+        }
+        
+        if (Date.now() > parseInt(otpExpiry)) {
+          setPaymentError('OTP expired. Please try payment again.');
+          localStorage.removeItem('demoOtp');
+          localStorage.removeItem('demoOtpExpiry');
+          setIsProcessing(false);
+          return;
+        }
+        
+        if (otp === storedOtp) {
+          setPaymentSuccess(true);
+          setShowOtpInput(false);
+          setIsProcessing(false);
+          
+          localStorage.removeItem('demoOtp');
+          localStorage.removeItem('demoOtpExpiry');
+          
+          onPaymentSuccess && onPaymentSuccess({
+            plan,
+            amount: finalPrice,
+            paymentMethod,
+            transactionId: `DEMO_TXN${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            status: 'completed',
+            message: 'Payment successful (Demo Mode)'
+          });
+          
+          setSuccessMessage && setSuccessMessage('Payment successful! Demo mode - no real transaction occurred.');
+        } else {
+          setPaymentError('Invalid OTP. Please try again.');
+          setIsProcessing(false);
+        }
+        return;
+      }
+      
       const response = await apiService.verifyOTP({
-        paymentId: plan._id, // For demo, using plan ID
-        otp: otp
+        paymentId: paymentDetails.paymentId || plan?._id,
+        otp: otp,
+        planId: plan?._id,
+        amount: finalPrice
       });
 
       if (response.success) {
@@ -253,411 +334,289 @@ const checkBackendAvailability = async () => {
         setShowOtpInput(false);
         setIsProcessing(false);
         
-        // Call payment success callback
-        onPaymentSuccess({
+        onPaymentSuccess && onPaymentSuccess({
           plan,
           amount: finalPrice,
           paymentMethod,
-          transactionId: `TXN${Date.now()}`,
-          timestamp: new Date().toISOString()
+          transactionId: response.data?.transactionId || `TXN${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          status: response.data?.status || 'completed',
+          paymentId: response.data?.paymentId
         });
+        
+        setSuccessMessage && setSuccessMessage('Payment successful! Your plan has been activated.');
       } else {
         setPaymentError(response.message || 'Invalid OTP. Please try again.');
         setIsProcessing(false);
       }
     } catch (error) {
       console.error('OTP verification error:', error);
-      setPaymentError('OTP verification failed. Please try again.');
-      setIsProcessing(false);
+      
+      if (error.message?.includes('Network') || error.message?.includes('Failed to fetch')) {
+        const storedOtp = localStorage.getItem('demoOtp');
+        if (storedOtp && otp === storedOtp) {
+          setPaymentSuccess(true);
+          setShowOtpInput(false);
+          setIsProcessing(false);
+          
+          localStorage.removeItem('demoOtp');
+          localStorage.removeItem('demoOtpExpiry');
+          
+          onPaymentSuccess && onPaymentSuccess({
+            plan,
+            amount: finalPrice,
+            paymentMethod,
+            transactionId: `NETWORK_FALLBACK_TXN${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            status: 'completed',
+            message: 'Payment successful (Network fallback mode)'
+          });
+          
+          setSuccessMessage && setSuccessMessage('Payment successful! Network issues detected - demo mode used.');
+        } else {
+          setPaymentError('Network error. Please check connection and try again.');
+          setIsProcessing(false);
+        }
+      } else {
+        setPaymentError(error.message || 'OTP verification failed. Please try again.');
+        setIsProcessing(false);
+      }
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Complete Payment</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-900">Complete Payment</h3>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
-              disabled={isProcessing}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+              aria-label="Close"
             >
               ×
             </button>
           </div>
 
-          {/* Payment Summary */}
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <h3 className="font-semibold text-gray-900 mb-2">Payment Summary</h3>
-            <div className="space-y-1">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Plan:</span>
-                <span className="font-medium">{plan.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Base Price:</span>
-                <span>{formatIndianRupees(plan.currentPrice)}</span>
-              </div>
-              {displayWithTax && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST (18%):</span>
-                  <span>{formatIndianRupees(plan.currentPrice * 0.18)}</span>
-                </div>
-              )}
-              {totalCouponDiscount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Coupon Discount ({totalCouponDiscount}%):</span>
-                  <span>-{formatIndianRupees(monthlyPrice * (totalCouponDiscount / 100))}</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t pt-2 mt-2">
-                <span className="font-bold text-gray-900">Total Amount:</span>
-                <span className="text-xl font-bold text-green-600">{formatIndianRupees(finalPrice)}</span>
-              </div>
-            </div>
-          </div>
-
           {paymentSuccess ? (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl text-green-600">✓</span>
+                <span className="text-green-600 text-2xl">✓</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Payment Successful!</h3>
-              <p className="text-gray-600">Your {plan.name} plan has been activated.</p>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">Payment Successful!</h4>
+              <p className="text-gray-600 mb-6">Your plan has been activated successfully.</p>
               <button
                 onClick={onClose}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
               >
                 Close
               </button>
             </div>
           ) : showOtpInput ? (
             <div className="space-y-4">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Smartphone className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Enter OTP</h3>
-                <p className="text-gray-600 mb-6">We've sent a 6-digit OTP to your registered mobile number</p>
-                
-                <div className="mb-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-blue-800 text-sm">
+                  Enter the 6-digit OTP sent to your registered mobile number.
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    OTP (6 digits)
+                  </label>
                   <input
                     type="text"
-                    maxLength="6"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit OTP"
-                    className="w-full p-3 text-center text-2xl font-bold tracking-widest border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-xl tracking-widest"
+                    placeholder="000000"
+                    maxLength={6}
                   />
                 </div>
                 
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setShowOtpInput(false)}
-                    className="flex-1 py-3 px-4 bg-gray-100 text-gray-800 rounded-lg font-medium hover:bg-gray-200"
-                  >
-                    Back
-                  </button>
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-700 text-sm">{paymentError}</p>
+                  </div>
+                )}
+                
+                <div className="flex space-x-3">
                   <button
                     onClick={handleOtpSubmit}
-                    disabled={otp.length !== 6 || isProcessing}
-                    className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                    disabled={isProcessing || otp.length !== 6}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isProcessing ? (
-                      <>
-                        <Loader className="w-4 h-4 animate-spin inline mr-2" />
-                        Verifying...
-                      </>
-                    ) : 'Verify OTP'}
+                    {isProcessing ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                  <button
+                    onClick={() => setShowOtpInput(false)}
+                    className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                  >
+                    Back
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            <>
-              {/* Payment Method Selection */}
-              <div className="mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Select Payment Method</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                  <button
-                    onClick={() => setPaymentMethod('credit_card')}
-                    className={`p-3 border rounded-lg flex flex-col items-center justify-center ${
-                      paymentMethod === 'credit_card' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <CreditCard className="w-6 h-6 text-gray-700 mb-2" />
-                    <span className="text-xs font-medium">Credit Card</span>
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('debit_card')}
-                    className={`p-3 border rounded-lg flex flex-col items-center justify-center ${
-                      paymentMethod === 'debit_card' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <CreditCard className="w-6 h-6 text-gray-700 mb-2" />
-                    <span className="text-xs font-medium">Debit Card</span>
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('upi')}
-                    className={`p-3 border rounded-lg flex flex-col items-center justify-center ${
-                      paymentMethod === 'upi' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <Smartphone className="w-6 h-6 text-gray-700 mb-2" />
-                    <span className="text-xs font-medium">UPI</span>
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('net_banking')}
-                    className={`p-3 border rounded-lg flex flex-col items-center justify-center ${
-                      paymentMethod === 'net_banking' 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <Banknote className="w-6 h-6 text-gray-700 mb-2" />
-                    <span className="text-xs font-medium">Net Banking</span>
-                  </button>
+            <div className="space-y-6">
+              {/* Payment Summary */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">Plan:</span>
+                  <span className="font-semibold">{plan?.name}</span>
                 </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-600">Monthly:</span>
+                  <span className="font-semibold">{formatIndianRupees(monthlyPrice)}</span>
+                </div>
+                {totalCouponDiscount > 0 && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-600">Coupon Discount:</span>
+                    <span className="font-semibold text-green-600">-{totalCouponDiscount}%</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                  <span className="text-lg font-bold">Total:</span>
+                  <span className="text-lg font-bold">{formatIndianRupees(finalPrice)}</span>
+                </div>
+              </div>
 
-                {/* Payment Form */}
-                <div className="space-y-4">
-                  {/* Card Payment Form */}
-                  {(paymentMethod === 'credit_card' || paymentMethod === 'debit_card') && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Card Number
-                        </label>
-                        <input
-                          type="text"
-                          value={paymentDetails.cardNumber}
-                          onChange={handleCardNumberChange}
-                          placeholder="1234 5678 9012 3456"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                          maxLength="19"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Cardholder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={paymentDetails.cardName}
-                          onChange={(e) => setPaymentDetails(prev => ({ ...prev, cardName: e.target.value }))}
-                          placeholder="John Doe"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Expiry Date
-                          </label>
-                          <input
-                            type="text"
-                            value={paymentDetails.expiryMonth}
-                            onChange={handleExpiryChange}
-                            placeholder="MM/YY"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                            maxLength="5"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            CVV
-                          </label>
-                          <input
-                            type="text"
-                            value={paymentDetails.cvv}
-                            onChange={handleCvvChange}
-                            placeholder="123"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                            maxLength="3"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
+              {/* Payment Method Selection */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Select Payment Method</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {['credit_card', 'debit_card', 'upi', 'net_banking'].map((method) => (
+                    <button
+                      key={method}
+                      onClick={() => setPaymentMethod(method)}
+                      className={`p-3 border rounded-lg text-center ${
+                        paymentMethod === method
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="block text-sm font-medium capitalize">
+                        {method.replace('_', ' ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                  {/* UPI Payment Form */}
-                  {paymentMethod === 'upi' && (
+              {/* Payment Details Form */}
+              <div className="space-y-4">
+                {paymentMethod === 'credit_card' || paymentMethod === 'debit_card' ? (
+                  <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        UPI ID
+                        Card Number
                       </label>
                       <input
                         type="text"
-                        value={paymentDetails.upiId}
-                        onChange={(e) => setPaymentDetails(prev => ({ ...prev, upiId: e.target.value }))}
-                        placeholder="yourname@upi"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                        value={paymentDetails.cardNumber}
+                        onChange={handleCardNumberChange}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="1234 5678 9012 3456"
                       />
-                      <div className="mt-3">
-                        <p className="text-sm text-gray-600 mb-2">Popular UPI Apps:</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentDetails(prev => ({ ...prev, walletType: 'googlepay' }))}
-                            className={`flex-1 py-2 px-3 border rounded-lg flex items-center justify-center gap-2 ${
-                              paymentDetails.walletType === 'googlepay' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                            }`}
-                          >
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-bold text-blue-600">G</span>
-                            </div>
-                            <span className="text-xs">Google Pay</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentDetails(prev => ({ ...prev, walletType: 'phonepe' }))}
-                            className={`flex-1 py-2 px-3 border rounded-lg flex items-center justify-center gap-2 ${
-                              paymentDetails.walletType === 'phonepe' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                            }`}
-                          >
-                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-bold text-purple-600">P</span>
-                            </div>
-                            <span className="text-xs">PhonePe</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentDetails(prev => ({ ...prev, walletType: 'paytm' }))}
-                            className={`flex-1 py-2 px-3 border rounded-lg flex items-center justify-center gap-2 ${
-                              paymentDetails.walletType === 'paytm' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                            }`}
-                          >
-                            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-bold text-yellow-600">P</span>
-                            </div>
-                            <span className="text-xs">Paytm</span>
-                          </button>
-                        </div>
-                      </div>
                     </div>
-                  )}
-
-                  {/* Net Banking Form */}
-                  {paymentMethod === 'net_banking' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Bank
+                        Cardholder Name
                       </label>
-                      <select
-                        value={paymentDetails.bankName}
-                        onChange={(e) => setPaymentDetails(prev => ({ ...prev, bankName: e.target.value }))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="">Select your bank</option>
-                        <option value="hdfc">HDFC Bank</option>
-                        <option value="icici">ICICI Bank</option>
-                        <option value="sbi">State Bank of India</option>
-                        <option value="axis">Axis Bank</option>
-                        <option value="kotak">Kotak Mahindra Bank</option>
-                        <option value="yes">Yes Bank</option>
-                      </select>
-                      
-                      {paymentDetails.bankName && (
-                        <div className="mt-4 space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Account Number
-                            </label>
-                            <input
-                              type="text"
-                              value={paymentDetails.accountNumber}
-                              onChange={(e) => setPaymentDetails(prev => ({ 
-                                ...prev, 
-                                accountNumber: e.target.value.replace(/\D/g, '') 
-                              }))}
-                              placeholder="Enter account number"
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              IFSC Code
-                            </label>
-                            <input
-                              type="text"
-                              value={paymentDetails.ifscCode}
-                              onChange={(e) => setPaymentDetails(prev => ({ 
-                                ...prev, 
-                                ifscCode: e.target.value.toUpperCase() 
-                              }))}
-                              placeholder="Enter IFSC code"
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <input
+                        type="text"
+                        value={paymentDetails.cardName}
+                        onChange={(e) => setPaymentDetails(prev => ({ ...prev, cardName: e.target.value }))}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="John Doe"
+                      />
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* User Info Notice (if logged in) */}
-              {user?.email && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Logged in as:</span> {user.email}
-                  </p>
-                </div>
-              )}
-
-              {/* Error Message */}
-              {paymentError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-700 text-sm">{paymentError}</p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                <button
-                  onClick={onClose}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 px-4 bg-gray-100 text-gray-800 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handlePaymentSubmit}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    `Pay ${formatIndianRupees(finalPrice)}`
-                  )}
-                </button>
-              </div>
-
-              {/* Security Notice */}
-              <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
-                  <div className="text-xs text-gray-600">
-                    <p className="font-medium mb-1">Secure Payment</p>
-                    <p>Your payment information is encrypted and secure. We don't store your card details.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Expiry Date
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentDetails.expiryMonth}
+                          onChange={handleExpiryChange}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="MM/YY"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          CVV
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentDetails.cvv}
+                          onChange={handleCvvChange}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="123"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : paymentMethod === 'upi' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      UPI ID
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentDetails.upiId}
+                      onChange={(e) => setPaymentDetails(prev => ({ ...prev, upiId: e.target.value }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="username@upi"
+                    />
                   </div>
+                ) : paymentMethod === 'net_banking' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Bank
+                    </label>
+                    <select
+                      value={paymentDetails.bankName}
+                      onChange={(e) => setPaymentDetails(prev => ({ ...prev, bankName: e.target.value }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select your bank</option>
+                      <option value="SBI">State Bank of India</option>
+                      <option value="HDFC">HDFC Bank</option>
+                      <option value="ICICI">ICICI Bank</option>
+                      <option value="AXIS">Axis Bank</option>
+                    </select>
+                  </div>
+                )}
+
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-red-700 text-sm">{paymentError}</p>
+                  </div>
+                )}
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={handlePaymentSubmit}
+                    disabled={isProcessing}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? 'Processing...' : 'Proceed to Pay'}
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -665,7 +624,7 @@ const checkBackendAvailability = async () => {
   );
 };
 
-// 3. PlanCard Component (updated with payment functionality)
+// 4. PlanCard Component
 const PlanCard = ({ 
   plan, 
   annualDiscount, 
@@ -681,6 +640,42 @@ const PlanCard = ({
   isLoading = false 
 }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const calculatePrice = useCallback((basePrice) => {
+    const tax = displayWithTax ? basePrice * 0.18 : 0;
+    return basePrice + tax;
+  }, [displayWithTax]);
+
+  const monthlyPrice = useMemo(() => calculatePrice(plan?.currentPrice || 0), [plan, calculatePrice]);
+  const annualPrice = useMemo(() => calculatePrice((plan?.currentPrice || 0) * 12 * (1 - annualDiscount / 100)), [plan, annualDiscount, calculatePrice]);
+
+  const handleShare = useCallback(async (platform) => {
+    if (onShareTracked) {
+      onShareTracked(platform, plan);
+    }
+    
+    try {
+      const shareData = {
+        platform,
+        planId: plan._id,
+        planName: plan.name,
+        price: monthlyPrice,
+        timestamp: new Date().toISOString()
+      };
+      
+      await apiService.trackShare(shareData);
+    } catch (error) {
+      console.error('Error tracking share:', error);
+    }
+  }, [plan, monthlyPrice, onShareTracked]);
+
+  const handlePaymentSuccess = useCallback((paymentData) => {
+    setShowPaymentModal(false);
+    if (onPaymentInitiated) {
+      onPaymentInitiated(paymentData);
+    }
+  }, [onPaymentInitiated]);
 
   if (isLoading) {
     return (
@@ -697,42 +692,7 @@ const PlanCard = ({
     );
   }
 
-  const calculatePrice = (basePrice) => {
-    const tax = displayWithTax ? basePrice * 0.18 : 0;
-    return basePrice + tax;
-  };
-
-  const monthlyPrice = calculatePrice(plan.currentPrice);
-  const annualPrice = calculatePrice(plan.currentPrice * 12 * (1 - annualDiscount / 100));
-
-  const handleShare = async (platform) => {
-    if (onShareTracked) {
-      onShareTracked(platform, plan);
-    }
-    
-    // Track the share in the backend
-    try {
-      const shareData = {
-        platform,
-        planId: plan._id,
-        planName: plan.name,
-        price: monthlyPrice,
-        timestamp: new Date().toISOString()
-      };
-      
-      await apiService.trackShare(shareData);
-      
-    } catch (error) {
-      console.error('Error tracking share:', error);
-    }
-  };
-
-  const handlePaymentSuccess = (paymentData) => {
-    setShowPaymentModal(false);
-    if (onPaymentInitiated) {
-      onPaymentInitiated(paymentData);
-    }
-  };
+  if (!plan) return null;
 
   return (
     <>
@@ -765,7 +725,7 @@ const PlanCard = ({
 
         <div className="mb-6">
           <ul className="space-y-2">
-            {plan.features.map((feature, index) => (
+            {plan.features?.map((feature, index) => (
               <li key={index} className="flex items-center text-sm text-gray-700">
                 <span className="text-green-500 mr-2">✓</span>
                 {feature}
@@ -825,7 +785,6 @@ const PlanCard = ({
         </div>
       </div>
 
-      {/* Payment Modal */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
@@ -835,12 +794,13 @@ const PlanCard = ({
         formatIndianRupees={formatIndianRupees}
         displayWithTax={displayWithTax}
         onPaymentSuccess={handlePaymentSuccess}
+        setSuccessMessage={setSuccessMessage}
       />
     </>
   );
 };
 
-// 4. LoadingSpinner Component
+// 5. LoadingSpinner Component
 const LoadingSpinner = ({ message, size = 'medium' }) => {
   const sizeClasses = {
     small: 'h-8 w-8',
@@ -856,7 +816,7 @@ const LoadingSpinner = ({ message, size = 'medium' }) => {
   );
 };
 
-// 5. ErrorMessage Component
+// 6. ErrorMessage Component
 const ErrorMessage = ({ message, onRetry }) => (
   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
     <div className="flex items-start">
@@ -876,7 +836,7 @@ const ErrorMessage = ({ message, onRetry }) => (
   </div>
 );
 
-// 6. SuccessMessage Component
+// 7. SuccessMessage Component
 const SuccessMessage = ({ message, onClose }) => (
   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
     <div className="flex items-center justify-between">
@@ -899,7 +859,7 @@ const SuccessMessage = ({ message, onClose }) => (
 
 // ============= INLINE HOOKS =============
 
-// 7. useResponsive Hook (inline implementation)
+// 8. useResponsive Hook
 const useResponsive = () => {
   const [windowSize, setWindowSize] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,
@@ -920,24 +880,16 @@ const useResponsive = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const breakpoints = {
-    sm: 640,
-    md: 768,
-    lg: 1024,
-    xl: 1280,
-    '2xl': 1536
-  };
-
   return {
     windowSize,
-    isMobile: windowSize.width < breakpoints.md,
-    isTablet: windowSize.width >= breakpoints.md && windowSize.width < breakpoints.lg,
-    isDesktop: windowSize.width >= breakpoints.lg,
-    isLargeDesktop: windowSize.width >= breakpoints.xl
+    isMobile: windowSize.width < 768,
+    isTablet: windowSize.width >= 768 && windowSize.width < 1024,
+    isDesktop: windowSize.width >= 1024,
+    isLargeDesktop: windowSize.width >= 1280
   };
 };
 
-// 8. usePricingCalculator Hook (inline implementation)
+// 9. usePricingCalculator Hook
 const usePricingCalculator = () => {
   const formatIndianRupees = useCallback((amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -949,36 +901,6 @@ const usePricingCalculator = () => {
   }, []);
 
   return { formatIndianRupees };
-};
-
-// ============= INLINE CONSTANTS =============
-
-// 9. Constants (inline definition)
-const MARKET_CONDITIONS = {
-  DEMAND_LEVELS: [
-    { label: 'High Demand', value: 'high', multiplier: 1.1 },
-    { label: 'Normal', value: 'normal', multiplier: 1.0 },
-    { label: 'Low Demand', value: 'low', multiplier: 0.9 }
-  ],
-  SEASONS: [
-    { label: 'Peak Season', value: 'peak', multiplier: 1.15 },
-    { label: 'Regular', value: 'regular', multiplier: 1.0 },
-    { label: 'Off Season', value: 'off', multiplier: 0.85 }
-  ]
-};
-
-const CURRENCY = {
-  CODE: 'INR',
-  SYMBOL: '₹',
-  NAME: 'Indian Rupees'
-};
-
-const BREAKPOINTS = {
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
-  '2xl': 1536
 };
 
 // ============= MAIN COMPONENT =============
@@ -1028,93 +950,67 @@ const PricingAutomationWithSharing = () => {
   const { formatIndianRupees } = usePricingCalculator();
   
   // Get user from localStorage
-  // In your main component:
-// Get user from localStorage
-const getUser = useCallback(() => {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch (error) {
-    return {};
-  }
-}, []);
-
-// You can also add a state for user if needed
-const [user, setUser] = useState(() => {
-  try {
-    return JSON.parse(localStorage.getItem('user') || '{}');
-  } catch (error) {
-    return {};
-  }
-});
-
-// Update user when localStorage changes
-useEffect(() => {
-  const handleStorageChange = () => {
+  const getUser = useCallback(() => {
     try {
-      const userData = JSON.parse(localStorage.getItem('user') || '{}');
-      setUser(userData);
+      return JSON.parse(localStorage.getItem('user') || '{}');
     } catch (error) {
-      setUser({});
+      return {};
     }
+  }, []);
+
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (error) {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        setUser(userData);
+      } catch (error) {
+        setUser({});
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const createDemoUser = () => {
+    const demoUser = {
+      _id: 'demo_user_123',
+      name: 'Demo User',
+      email: 'demo@example.com',
+      phone: '9876543210',
+      role: 'user',
+      subscription: {
+        plan: null,
+        status: 'inactive',
+        startDate: null,
+        endDate: null,
+        autoRenew: true
+      },
+      location: {
+        country: 'IN',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        timezone: 'Asia/Kolkata'
+      },
+      preferences: {
+        currency: 'INR',
+        taxInclusive: true
+      }
+    };
+    
+    localStorage.setItem('user', JSON.stringify(demoUser));
+    setUser(demoUser);
+    setSuccessMessage('Demo user created!');
   };
 
-  window.addEventListener('storage', handleStorageChange);
-  return () => window.removeEventListener('storage', handleStorageChange);
-}, []);
-
-
-
-// After successful login
-const handleLogin = async (email, password) => {
-  try {
-    const response = await apiService.login({ email, password });
-    if (response.success) {
-      // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      localStorage.setItem('token', response.data.token);
-      
-      // Update state
-      setUser(response.data.user);
-      
-      // Redirect or show success message
-      setSuccessMessage('Login successful!');
-    }
-  } catch (error) {
-    setError('Login failed. Please try again.');
-  }
-};
-
-// For demo purposes, you can create a mock user
-const createDemoUser = () => {
-  const demoUser = {
-    _id: 'demo_user_123',
-    name: 'Demo User',
-    email: 'demo@example.com',
-    phone: '9876543210',
-    role: 'user',
-    subscription: {
-      plan: null,
-      status: 'inactive',
-      startDate: null,
-      endDate: null,
-      autoRenew: true
-    },
-    location: {
-      country: 'IN',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      timezone: 'Asia/Kolkata'
-    },
-    preferences: {
-      currency: 'INR',
-      taxInclusive: true
-    }
-  };
-  
-  localStorage.setItem('user', JSON.stringify(demoUser));
-  setUser(demoUser);
-  setSuccessMessage('Demo user created!');
-};
   // Fetch all data on component mount
   useEffect(() => {
     fetchAllData();
@@ -1125,7 +1021,6 @@ const createDemoUser = () => {
     setError(null);
     
     try {
-      // Fetch data in parallel
       await Promise.all([
         fetchPlans(),
         fetchAutomationStatus(),
@@ -1146,17 +1041,8 @@ const createDemoUser = () => {
     try {
       const user = getUser();
       
-      // Get location with fallback
       let location = { country: 'IN', city: 'Mumbai' };
-      if (apiService.getUserLocation) {
-        try {
-          location = await apiService.getUserLocation();
-        } catch (error) {
-          console.warn('Could not get user location, using default:', error);
-        }
-      }
       
-      // Call API with safe parameters
       const response = await apiService.getPlans({
         includeTax: automationSettings.taxInclusive,
         annualDiscount: discounts.annualDiscount,
@@ -1264,38 +1150,7 @@ const createDemoUser = () => {
       setIsLoadingAutomation(false);
     }
   };
-// Add this in your main component's return statement, near the top
-{(!responsive.isMobile || !showMobileMenu) && (
-  <div className="flex justify-between items-center mb-4">
-    <div></div> {/* Empty div for spacing */}
-    
-    {/* User Status Display */}
-    <div className="flex items-center space-x-2">
-      {user?.email ? (
-        <>
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-blue-600 font-bold">
-              {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
-            </span>
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-sm font-medium text-gray-700">{user.name || user.email}</p>
-            <p className="text-xs text-gray-500">
-              {user.subscription?.status === 'active' ? 'Premium User' : 'Free User'}
-            </p>
-          </div>
-        </>
-      ) : (
-        <button
-          onClick={createDemoUser}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          Login as Demo User
-        </button>
-      )}
-    </div>
-  </div>
-)}
+
   // Fetch share statistics with fallback
   const fetchShareStats = async () => {
     setIsLoadingShareStats(true);
@@ -1360,14 +1215,13 @@ const createDemoUser = () => {
         autoAdjust: newAutoAdjust
       }));
       
-      // Refresh plans
       fetchPlans();
       
     } catch (error) {
       console.error('Error toggling automation:', error);
       setError(`Failed to ${newAutoAdjust ? 'start' : 'stop'} automation`);
     }
-  }, [automationSettings.autoAdjust]);
+  }, [automationSettings.autoAdjust, fetchPlans]);
 
   // Handle discount coupon application with validation fallback
   const handleApplyCoupon = useCallback(async () => {
@@ -1383,7 +1237,6 @@ const createDemoUser = () => {
     try {
       const user = getUser();
       
-      // Validate coupon with fallback
       let validation = { valid: false, error: 'Invalid coupon code' };
       
       if (apiService.validateCoupon) {
@@ -1394,7 +1247,6 @@ const createDemoUser = () => {
           amount: selectedPlan?.currentPrice || 0
         });
       } else {
-        // Mock validation for demo
         const validCoupons = ['WELCOME20', 'SAVE15', 'INDIAN10', 'STARTUP25'];
         if (validCoupons.includes(code)) {
           validation = {
@@ -1432,7 +1284,6 @@ const createDemoUser = () => {
         
         setSuccessMessage(`Coupon "${code}" applied successfully! You get ${validation.coupon.discountValue}% off.`);
         
-        // Refresh plans with new coupon
         fetchPlans();
       } else {
         setError(validation.error || 'Invalid coupon code');
@@ -1443,23 +1294,20 @@ const createDemoUser = () => {
     } finally {
       setIsApplyingCoupon(false);
     }
-  }, [discounts.couponCode, discounts.activeCoupons, selectedPlan, getUser]);
+  }, [discounts.couponCode, discounts.activeCoupons, selectedPlan, getUser, fetchPlans]);
 
   // Handle plan selection
-  const handlePlanSelect = useCallback(async (planDetails) => {
+  const handlePlanSelect = useCallback((planDetails) => {
     setSelectedPlan(planDetails);
     
-    // Show mobile-friendly alert
     const summary = `Plan: ${planDetails.name}\nMonthly: ${formatIndianRupees(planDetails.monthlyTotal)}\nAnnual: ${formatIndianRupees(planDetails.annualTotal)}\nSave: ${planDetails.annualDiscount + planDetails.totalCouponDiscount}%`;
     
-    // For demo purposes, show alert
     if (responsive.isMobile) {
       alert(summary);
     } else {
       setSuccessMessage(`Selected ${planDetails.name} plan: ${formatIndianRupees(planDetails.monthlyTotal)}/month`);
     }
     
-    // Track plan selection analytics with safe check
     try {
       if (window.analytics && typeof window.analytics.track === 'function') {
         window.analytics.track('Plan Selected', {
@@ -1474,20 +1322,16 @@ const createDemoUser = () => {
     }
   }, [formatIndianRupees, responsive.isMobile, getUser]);
 
-  // Handle share tracked - Updated to use API service
+  // Handle share tracked
   const handleShareTracked = useCallback(async (platform, plan) => {
-    // Refresh share stats when a new share is tracked
     fetchShareStats();
     
-    // Show success message
     setSuccessMessage(`Shared ${plan.name} plan on ${platform}`);
     
-    // Clear success message after 3 seconds
     setTimeout(() => {
       setSuccessMessage('');
     }, 3000);
     
-    // Track share in backend
     try {
       const shareData = {
         platform,
@@ -1501,16 +1345,14 @@ const createDemoUser = () => {
     } catch (error) {
       console.error('Error tracking share:', error);
     }
-  }, []);
+  }, [fetchShareStats]);
 
   // Handle payment initiated
   const handlePaymentInitiated = useCallback(async (paymentData) => {
     setSuccessMessage(`Payment successful! ${paymentData.plan.name} plan activated.`);
     
-    // Add to payment history
     setPaymentHistory(prev => [paymentData, ...prev.slice(0, 9)]);
     
-    // Track payment in backend
     try {
       const user = getUser();
       await apiService.trackPayment({
@@ -1523,9 +1365,8 @@ const createDemoUser = () => {
       console.error('Error tracking payment:', error);
     }
     
-    // Refresh plans to show updated subscription status
     fetchPlans();
-  }, [getUser]);
+  }, [getUser, fetchPlans]);
 
   // Handle market condition change
   const handleMarketConditionChange = useCallback((type, value) => {
@@ -1618,6 +1459,38 @@ const createDemoUser = () => {
         {error && (
           <div className="mb-4">
             <ErrorMessage message={error} onRetry={clearError} />
+          </div>
+        )}
+
+        {/* User Status Display */}
+        {(!responsive.isMobile || !showMobileMenu) && (
+          <div className="flex justify-between items-center mb-4">
+            <div></div>
+            
+            <div className="flex items-center space-x-2">
+              {user?.email ? (
+                <>
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-bold">
+                      {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div className="hidden sm:block">
+                    <p className="text-sm font-medium text-gray-700">{user.name || user.email}</p>
+                    <p className="text-xs text-gray-500">
+                      {user.subscription?.status === 'active' ? 'Premium User' : 'Free User'}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <button
+                  onClick={createDemoUser}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Login as Demo User
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -1800,11 +1673,6 @@ const createDemoUser = () => {
                   onChange={(value) => handleAutomationSettingChange('profitMargin', value)}
                   unit="%"
                   isMobile={responsive.isMobile}
-
-
-                  
-
-                  
                   formatIndianRupees={formatIndianRupees}
                   isLoading={isLoadingAutomation}
                 />
@@ -2152,9 +2020,9 @@ const createDemoUser = () => {
                           <span className="text-green-600 font-bold">₹</span>
                         </div>
                         <div>
-                          <div className="font-medium text-gray-900">{payment.plan.name}</div>
+                          <div className="font-medium text-gray-900">{payment.plan?.name}</div>
                           <div className="text-xs text-gray-600 capitalize">
-                            {payment.paymentMethod.replace('_', ' ')} • {formatIndianRupees(payment.amount)}
+                            {payment.paymentMethod?.replace('_', ' ')} • {formatIndianRupees(payment.amount)}
                           </div>
                         </div>
                       </div>
@@ -2379,13 +2247,13 @@ const createDemoUser = () => {
 
             {/* Footer */}
             <footer className="mt-6 sm:mt-8 lg:mt-12 text-center text-gray-600 text-xs sm:text-sm">
-              <p>All prices in {CURRENCY.NAME} (₹) | GST compliant | Share on social media | {new Date().getFullYear()} Pricing Automation</p>
+              <p>All prices in Indian Rupees (₹) | GST compliant | Share on social media | {new Date().getFullYear()} Pricing Automation</p>
               <p className="mt-1 sm:mt-2">
                 {responsive.isMobile ? 'Responsive design' : 'Designed for all devices'} • 
-                {responsive.windowSize.width < BREAKPOINTS.sm && ' Mobile'} 
-                {responsive.windowSize.width >= BREAKPOINTS.sm && responsive.windowSize.width < BREAKPOINTS.md && ' Tablet'} 
-                {responsive.windowSize.width >= BREAKPOINTS.md && responsive.windowSize.width < BREAKPOINTS.lg && ' Laptop'} 
-                {responsive.windowSize.width >= BREAKPOINTS.lg && ' Desktop'}
+                {responsive.windowSize.width < 640 && ' Mobile'} 
+                {responsive.windowSize.width >= 640 && responsive.windowSize.width < 768 && ' Tablet'} 
+                {responsive.windowSize.width >= 768 && responsive.windowSize.width < 1024 && ' Laptop'} 
+                {responsive.windowSize.width >= 1024 && ' Desktop'}
               </p>
             </footer>
           </main>

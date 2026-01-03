@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import applicationsController from '../controller/applicationController.js';
+
 const router = express.Router();
-const applicationsController = require('../controller/applicationController');
 
 // Health check
 router.get('/health', applicationsController.healthCheck);
@@ -26,4 +27,4 @@ router.post('/:id/appeal', applicationsController.submitAppeal);
 // Export applications
 router.get('/export/export', applicationsController.exportApplications);
 
-module.exports = router;
+export default router;

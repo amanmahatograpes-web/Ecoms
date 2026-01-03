@@ -37,14 +37,35 @@ router.post('/start', (req, res) => {
   });
 });
 
-// POST /api/automation/stop - Stop automation (REQUIRED FOR YOUR API CLIENT)
-router.post('/stop', (req, res) => {
+// POST /api/automation/logs - Get automation logs (REQUIRED FOR YOUR API CLIENT)
+router.post('/logs', (req, res) => {
+  const { startDate, endDate, limit = 50 } = req.body;
+  
   res.json({
     success: true,
-    message: 'Automation stopped successfully',
+    message: 'Automation logs retrieved',
     data: {
-      stoppedAt: new Date().toISOString(),
-      status: 'stopped'
+      logs: [
+        {
+          id: 'log_1',
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: 'Automation cycle completed successfully',
+          details: { processed: 25, errors: 0 }
+        },
+        {
+          id: 'log_2',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          level: 'warning',
+          message: 'Rate limit reached for external API',
+          details: { retryIn: 300 }
+        }
+      ],
+      pagination: {
+        total: 156,
+        limit: parseInt(limit),
+        hasMore: true
+      }
     }
   });
 });

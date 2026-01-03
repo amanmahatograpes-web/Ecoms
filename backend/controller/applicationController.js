@@ -1,4 +1,4 @@
-const Application = require('../models/Application');
+import Application from '../models/Application.js';
 
 class ApplicationsController {
   // Get all applications with advanced filtering

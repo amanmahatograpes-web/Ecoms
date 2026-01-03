@@ -1,13 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const compression = require('compression');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-const config = require('./config/config');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+import config from './config/config.js';
 
 // Import routes
-const applicationsRoutes = require('./routes/applications.routes');
+import applicationsRoutes from './routes/applicationsRoutes.js';
+import pricingRoutes from './routes/pricing.routes.js';
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/applications', applicationsRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -78,4 +80,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-module.exports = app;
+export default app;

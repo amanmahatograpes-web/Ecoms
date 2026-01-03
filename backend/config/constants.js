@@ -184,8 +184,7 @@
 // };
 
 
-
-module.exports = {
+export default {
   // Pricing constants
   CURRENCY: {
     SYMBOL: '₹',

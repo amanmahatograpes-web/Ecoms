@@ -934,11 +934,11 @@ router.get('/realtime', async (req, res) => {
 });
 
 // @desc    Get share analytics
-// @route   GET /api/v1/analytics/shares
+// @route   POST /api/v1/analytics/shares
 // @access  Private/Admin
-router.get('/shares', async (req, res) => {
+router.post('/shares', async (req, res) => {
   try {
-    const { startDate, endDate, platform } = req.query;
+    const { startDate, endDate, platform } = req.body;
     
     // This is a placeholder - implement your actual share tracking logic
     // You would typically have a Share model to track social shares
